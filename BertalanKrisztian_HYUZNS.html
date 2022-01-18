@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="hu">
+
+<head>
+    <meta charset=utf-8>
+    <title>Three.js Object Tester Skeleton</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+
+        #infopanel {
+            font-size: 75%;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 50%;
+            text-align: left;
+            z-index: 100;
+            display:block;
+            color: cyan;
+            opacity: 0.7;
+        }
+        #infopanelControls {
+            font-size: 85%;
+            position: absolute;
+            top: 100px;
+            left: 770px;
+            width: 50%;
+            text-align: right;
+            z-index: 100;
+            display:block;
+            color: cyan;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+<div id="canvasdiv">
+    <canvas id="myCanvas" width="800" height="400" border="1px"></canvas>
+</div>
+
+
+<div id="infopanelControls">
+    <p id="infopanelJ">jobb nyil: napocska ki</p>
+    <p id="infopanelB">bal nyil:  napocska be</p>
+    <p id="infopanelF">fel nyil: vilagitas be</p>
+    <p id="infopanelL">le nyil:  vilagitas ki</p>
+    <p id="infopanelI">I gomb: szoveges info mutat/elrejt</p>
+</div>
+
+<div id="infopanel">
+    <p id="infopanelN">Bertalan Krisztián</p>
+    <p id="infopanel1">HYUZNS</p>
+    <p id="infopanel2">Gazdaságinformatika</p>
+    <p id="infopanel3">2020/2021/1</p>
+</div>
+
+<script type="module">
+    import * as THREE from './js-r132/build/three.module.js';
+    import { TrackballControls } from './js-r132/examples/jsm/controls/TrackballControls.js';
+    import { OBJLoader } from './js-r132/examples/jsm/loaders/OBJLoader.js';
+    import { MTLLoader } from './js-r132/examples/jsm/loaders/MTLLoader.js';
+
+    import { GUI } from './js-r132/examples/jsm/libs/dat.gui.module.js';
+
+    var container;
+    var WIDTH, HEIGHT, aspectRatio;
+    var renderer;
+    var scene, camera;
+    var controls;
+    var OFFSETLEFT, OFFSETTOP;
+
+    var antennaFej, mozgoAjto, hold, nap;
+    var sLight;
+    var MozdonyMesh, AutomataMesh;
+    var Ejszaka ;
+    var Automata;
+    var hLight
+    var ambientLight
+    var pLight
+    var infoPanel;
+    var infoPanelControls;
+    var infoSzoveg;
+    var infoControlSzoveg;
+
+    var guiParams = {
+        AntennaSebesseg: 0.01,
+        stopButton: function() {
+            this.AntennaSebesseg = 0;
+        }
+    };
+
+    init();
+
+
+    loader();
+    animate();
+
+
+    function setInfoPanelText( msg ) {
+        infoPanel.innerHTML = msg;
+    }
+
+    function setInfoPanelControlsText( msg ) {
+        infoPanelControls.innerHTML = msg;
+    }
+
+    function addControlGui() {
+        var gui = new GUI( { autoPlace: false });
+        gui.add( guiParams, 'AntennaSebesseg', -0.09, 0.09).listen();
+        gui.add( guiParams, 'stopButton').name( 'Antenna allj!' );
+        gui.domElement.style.position = 'absolute';
+        gui.domElement.style.top = OFFSETTOP + 'px';
+        gui.domElement.style.left = OFFSETLEFT + WIDTH - gui.width + 'px';
+        document.body.appendChild( gui.domElement );
+    }
+
+
+    function loader() {
+        var MozdonyFile = 'assets/models/BertalanKrisztian_HYUZNS.obj';
+        var MozdonyMaterialFile = 'assets/models/BertalanKrisztian_HYUZNS.mtl';
+        var AutomataFile = 'assets/models/jegyAutomata.obj';
+        var AutomataMaterialFile = 'assets/models/jegyAutomata.mtl';
+
+        new MTLLoader()
+            .load(MozdonyMaterialFile, function (MozdonyMaterials) {
+                MozdonyMaterials.preload();
+                new OBJLoader()
+                    .setMaterials(MozdonyMaterials)
+                    .load(MozdonyFile, function (MozdonyObject) {
+                        MozdonyMesh = MozdonyObject;
+                        console.log(MozdonyObject);
+
+                        MozdonyObject.traverse(function (MozdonyChild) {
+                            if (MozdonyChild instanceof THREE.Mesh) {
+                                MozdonyChild.rotation.y =   Math.PI / 2;
+                                MozdonyChild.position.set(-2, 0.62, 4.2,);
+                                MozdonyChild.scale.set(0.55, 0.55, 0.55);
+                            }
+                        });
+                        init();
+                    });
+            });
+        new MTLLoader()
+            .load(AutomataMaterialFile, function (AutomataMaterials) {
+                AutomataMaterials.preload();
+                new OBJLoader()
+                    .setMaterials(AutomataMaterials)
+                    .load(AutomataFile, function (AutomataObject) {
+                        AutomataMesh = AutomataObject;
+                        console.log(AutomataObject);
+
+                        AutomataObject.traverse(function (AutomataChild) {
+                            if (AutomataChild instanceof THREE.Mesh) {
+                                AutomataChild.position.set(-8, 1, -6.5,);
+                                AutomataChild.rotation.y = 3 *    Math.PI / 2;
+                                AutomataChild.scale.set(0.65, 0.65, 0.65);
+                            }
+                        });
+                        init();
+                    });
+            });
+    }
+        function handleKeyUp( event ) {
+
+                if(event.keyCode === 73 ){
+                    if(infoSzoveg === true) {
+                        setInfoPanelText('<p id="infopanelN">Bertalan Krisztián</p>\n' +
+                            '    <p id="infopanel1">HYUZNS</p>\n' +
+                            '    <p id="infopanel2">Gazdaságinformatika</p>\n' +
+                            '    <p id="infopanel3">2020/2021/1</p> ')
+                    } else if(infoSzoveg === false){
+                        setInfoPanelText('');
+                    }
+                    if(infoControlSzoveg === true){
+                        setInfoPanelControlsText('<p id="infopanelJ">jobb nyil: napocska ki</p>\n' +
+                            '    <p id="infopanelB">bal nyil:  napocska be</p>\n' +
+                            '    <p id="infopanelF">fel nyil: vilagitas be</p>\n' +
+                            '    <p id="infopanelL">le nyil:  vilagitas ki</p>' +
+                            '<p id="infopanelI">I gomb: szoveges info mutat/elrejt</p>')
+
+                    } else if(infoControlSzoveg === false){
+                        setInfoPanelControlsText('');
+                    }
+                }
+
+                if(event.keyCode === 39 &&  Ejszaka === true){
+                    sLight.distance = 0;
+                    ambientLight.intensity = 0;
+                    pLight.intensity = 0;
+                }
+                else if(event.keyCode === 37 && Ejszaka === false){
+                    sLight.distance = 40;
+                    ambientLight.intensity = 1;
+                    pLight.intensity = 1;
+                }
+                else if(event.keyCode === 40 && Automata === false){
+                hLight.intensity = 0;
+                }
+            else if(event.keyCode === 38 && Automata === true){
+                hLight.intensity = 1;
+            }
+
+
+        }
+        function handleKeyDown( event ) {
+
+        if(event.keyCode === 73 ){
+            infoSzoveg = infoSzoveg === false;
+            infoControlSzoveg = infoControlSzoveg === false;
+        }
+
+        if( event.keyCode === 39){
+            Ejszaka = true;
+
+        }
+        if(event.keyCode === 37){
+            Ejszaka = false;
+        }
+
+        if(event.keyCode === 38){
+            Automata = true;
+        }
+
+            if(event.keyCode === 40){
+                Automata = false;
+            }
+
+
+
+        }
+        function init() {
+            // Böngésző ablakméret lekérése és méretarány számítása
+            container = document.getElementById( 'myCanvas' );
+            WIDTH = container.clientWidth;
+            HEIGHT = container.clientHeight;
+            OFFSETLEFT = container.offsetLeft;
+            OFFSETTOP = container.offsetTop;
+            aspectRatio = WIDTH / HEIGHT;
+
+            //--texture loadok------------------------------------------------//
+            var textureLoader = new THREE.TextureLoader();
+            var grassTextura = textureLoader.load('assets/texture/grass.jpg');
+            var holdTextura = textureLoader.load('assets/texture/moon.jpg');
+            var napTextura = textureLoader.load('assets/texture/sun.jpg');
+            var fadarabTextura = textureLoader.load('assets/texture/wood.jpg');
+            var sinTextura = textureLoader.load('assets/texture/metal.jpg');
+            var betonAljzatTextura = textureLoader.load('assets/texture/floor.jpg');
+            var mozgoAjtoTextura = textureLoader.load('assets/texture/glass.jpg');
+            var oldalFalTextura = textureLoader.load('assets/texture/brick.jpg');
+            var antennaTextura = textureLoader.load('assets/texture/antenna.jpg');
+
+
+
+            infoPanel = document.getElementById( 'infopanel' );
+            infoPanelControls = document.getElementById( 'infopanelControls' );
+            window.addEventListener( 'keydown', handleKeyDown );
+            window.addEventListener( 'keyup', handleKeyUp );
+
+            // Renderer létrehozása és DOM-hoz adása
+            renderer = new THREE.WebGLRenderer({antialias: true, canvas: container});
+            renderer.setSize(WIDTH, HEIGHT);
+            //renderer.setClearColor(0x000000);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Színtér létrehozása
+            scene = new THREE.Scene();
+
+            // Kamera létrehozása és vetítési paramétereinek beállítása
+            camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000);
+            camera.position.set(-26, 16, 5);
+            //camera.lookAt( scene.position );
+
+
+            var talajGeometria = new THREE.PlaneGeometry(25, 25);
+            var talajAnyaga = new THREE.MeshLambertMaterial({
+                color: 0x348C31,
+                wireframe: false,
+                side: THREE.DoubleSide
+            });
+            talajAnyaga.map = grassTextura;
+            var talaj = new THREE.Mesh(talajGeometria, talajAnyaga);
+            talaj.rotation.x = Math.PI / 2;
+            talaj.receiveShadow = true;
+            scene.add(talaj);
+
+            var hatsoFalGeometria = new THREE.BoxGeometry(15.2, 5, 0.2);
+            var hatsoFalAnyaga = new THREE.MeshLambertMaterial({
+                color: 0x225f78,
+                wireframe: false,
+                roughness: 1,
+                metalness: 1
+            });
+            hatsoFalAnyaga.map = oldalFalTextura;
+            var hatsoFal = new THREE.Mesh(hatsoFalGeometria, hatsoFalAnyaga);
+            hatsoFal.position.set(0, 2.6, -10.98);
+            scene.add(hatsoFal);
+
+            var mozgoAjtoGeometry = new THREE.BoxGeometry(3, 5, 0.1);
+            var mozgoAjtoMaterial = new THREE.MeshLambertMaterial({
+                color: 0x225f78,
+                wireframe: false,
+                roughness: 1,
+                metalness: 1
+            });
+            mozgoAjtoMaterial.map = mozgoAjtoTextura;
+            mozgoAjto = new THREE.Mesh(mozgoAjtoGeometry, mozgoAjtoMaterial);
+            mozgoAjto.position.set(-6, 2.6, -5.2);
+            scene.add(mozgoAjto);
+
+
+            var antennaFejGeometria = new THREE.SphereGeometry(2.1, 15, 15, 0, 3.25);
+            var antennaFejAnyaga = new THREE.MeshLambertMaterial({color: 0x858585, side: THREE.DoubleSide,});
+            antennaFejGeometria.map = antennaTextura;
+            antennaFej = new THREE.Mesh(antennaFejGeometria, antennaFejAnyaga);
+            antennaFej.position.set(4, 9.7, -8);
+            antennaFej.rotation.set(9.2, 0.1, 0);
+            scene.add(antennaFej);
+
+            var antennaTestGeometria = new THREE.BoxGeometry(3, 1, 3);
+            var antennaTestAnyaga = new THREE.MeshLambertMaterial({
+                color: 0x858585,
+                wireframe: false,
+                roughness: 1,
+                metalness: 1
+            });
+            antennaTestAnyaga.map = antennaTextura;
+            var antennaTest = new THREE.Mesh(antennaTestGeometria, antennaTestAnyaga);
+            antennaTest.position.set(4, 7.6, -8);
+            scene.add(antennaTest);
+
+            var tetoGeometria = new THREE.BoxGeometry(15, 6, 0);
+            var tetoAnyaga = new THREE.MeshLambertMaterial({color: 0xFFFFFF, wireframe: false});
+            var teto = new THREE.Mesh(tetoGeometria, tetoAnyaga);
+            teto.position.set(0, 5.1, -8);
+            teto.rotation.set(7.85, 0, 0);
+            scene.add(teto);
+
+            var padloAnyaga = new THREE.MeshLambertMaterial({color: 0xBA8C63, wireframe: false});
+            var padlo = new THREE.Mesh(tetoGeometria, padloAnyaga);
+            padlo.position.set(0, 0.1, -8);
+            padlo.rotation.set(7.85, 0, 0);
+            scene.add(padlo);
+
+            var elulsoFalGeometria = new THREE.BoxGeometry(12.23, 5, 0.2);
+            var elulsoFal = new THREE.Mesh(elulsoFalGeometria, hatsoFalAnyaga)
+
+            elulsoFal.position.set(1.48, 2.6, -5.02);
+            scene.add(elulsoFal);
+
+            var ereszGeometria = new THREE.BoxGeometry(18, 11, 1);
+            var ereszAnyaga = new THREE.MeshLambertMaterial({color: 0x9d6055, wireframe: false});
+            var eresz = new THREE.Mesh(ereszGeometria, ereszAnyaga);
+            eresz.position.set(0, 4.5, -7);
+            eresz.rotation.set(7.85, 0, 0);
+            scene.add(eresz);
+
+            var betonAljzatGeometria = new THREE.BoxGeometry(22, 11, 1);
+            var betonAljzatAnyaga = new THREE.MeshLambertMaterial({color: 0x33332f, wireframe: false});
+            betonAljzatAnyaga.map = betonAljzatTextura;
+            var betonAljzat = new THREE.Mesh(betonAljzatGeometria, betonAljzatAnyaga);
+            betonAljzat.position.set(0, 0.55, -6);
+            betonAljzat.rotation.set(7.85, 0, 0);
+            betonAljzat.receiveShadow = true;
+            betonAljzat.castShadow = false;
+            scene.add(betonAljzat);
+
+
+            var oldalFalGeometria = new THREE.BoxGeometry(6, 5, 0.2);
+            var oldalFal = new THREE.Mesh(oldalFalGeometria, hatsoFalAnyaga);
+            oldalFal.position.set(-7.5, 2.6, -8);
+            oldalFal.rotation.set(0, 7.85, 0);
+            scene.add(oldalFal);
+
+            var jobbOldaliFal = new THREE.Mesh(oldalFalGeometria, hatsoFalAnyaga);
+            jobbOldaliFal.position.set(7.5, 2.6, -8);
+            jobbOldaliFal.rotation.set(0, 7.85, 0);
+            scene.add(jobbOldaliFal);
+
+            var cserepGeometria = new THREE.ConeGeometry(6.4, 3, 4);
+            var cserepAnyaga = new THREE.MeshStandardMaterial({
+                color: 0x9d6055,
+                wireframe: false,
+            });
+            var cserep = new THREE.Mesh(cserepGeometria, cserepAnyaga);
+            cserep.position.set(4.35, 6.5, -8);
+            cserep.rotation.y = Math.PI / 4;
+            scene.add(cserep);
+
+            var balOldaliCserep = new THREE.Mesh(cserepGeometria, cserepAnyaga);
+            balOldaliCserep.position.set(-4.35, 6.5, -8);
+            balOldaliCserep.rotation.y = Math.PI / 4;
+            scene.add(balOldaliCserep);
+
+            var sinGeometria = new THREE.BoxGeometry(24, 1, 0.6);
+            var sinAnyag = new THREE.MeshPhongMaterial({
+                metal: true,
+                color: 0x363532,
+                shininess: 100,
+                specular: 0x757575,
+                side: THREE.DoubleSide,
+                wireframe: false
+            });
+            sinAnyag.map = sinTextura;
+            var sin = new THREE.Mesh(sinGeometria, sinAnyag);
+            sin.position.set(0, 0.32, 2);
+            sin.rotation.set(7.85, 0, 0);
+            scene.add(sin);
+
+            var sinB = new THREE.Mesh(sinGeometria, sinAnyag);
+            sinB.position.set(0, 0.32, 6.2);
+            sinB.rotation.set(7.85, 0, 0);
+            scene.add(sinB);
+
+            var faDarabokGeometria = new THREE.BoxGeometry(6, 1, 0.5);
+            var faDarabokAnyaga = new THREE.MeshLambertMaterial({color: 0x1c1c1b, wireframe: false});
+            faDarabokAnyaga.map = fadarabTextura;
+            var fadarab = new THREE.Mesh(faDarabokGeometria, faDarabokAnyaga);
+            fadarab.position.set(-11, 0.3, 4.1);
+            fadarab.rotation.set(7.85, 0, 7.85);
+            scene.add(fadarab);
+            var faDarabok = [];
+            var coord = -9;
+            for (var i = 0; i < 11; i++) {
+                faDarabok[i] = new THREE.Mesh(faDarabokGeometria, faDarabokAnyaga);
+                faDarabok[i].position.set(coord, 0.3, 4.1);
+                faDarabok[i].rotation.set(7.85, 0, 7.85);
+                scene.add(faDarabok[i]);
+                coord += 2;
+            }
+
+            var digitalisTablaGeometria = new THREE.BoxGeometry(2.1, 1.6, 0.25);
+            var digitalisTablaAnyaga = new THREE.MeshLambertMaterial({
+                color: 0x006699,
+                wireframe: false,
+                roughness: 1
+            });
+            var digitalisTabla = new THREE.Mesh(digitalisTablaGeometria, digitalisTablaAnyaga)
+            digitalisTabla.position.set(-9.48, 2.9, -1.82);
+            digitalisTabla.rotation.y = (Math.PI / 2);
+            digitalisTabla.castShadow = true;
+            digitalisTabla.receiveShadow = false;
+            scene.add(digitalisTabla);
+
+            var tablaKeretGeometria = new THREE.BoxGeometry(2.11, 1.61, 0.15);
+            var tablaKeretAnyaga = new THREE.MeshLambertMaterial({
+                color: 0x262623,
+                wireframe: false,
+                roughness: 1,
+                metalness: 1
+            });
+            var keret = new THREE.Mesh(tablaKeretGeometria, tablaKeretAnyaga)
+            keret.position.set(-9.55, 2.9, -1.82);
+            keret.rotation.y = (Math.PI / 2);
+            keret.castShadow = true;
+            scene.add(keret);
+
+            var tablaTalpGeometria = new THREE.BoxGeometry(0.11, 2.3, 0.15);
+            var tablaTalpAnyaga = new THREE.MeshLambertMaterial({
+                color: 0x262623,
+                wireframe: false,
+                roughness: 1,
+                metalness: 1
+            });
+            var talp = new THREE.Mesh(tablaTalpGeometria, tablaTalpAnyaga)
+            talp.position.set(-9.55, 1.2, -2.82);
+            talp.rotation.y = (Math.PI / 2);
+            talp.castShadow = true;
+            scene.add(talp);
+
+            var talpB = new THREE.Mesh(tablaTalpGeometria, tablaTalpAnyaga)
+            talpB.position.set(-9.55, 1.2, -0.82);
+            talpB.rotation.y = (Math.PI / 2);
+            talpB.castShadow = true;
+            scene.add(talpB);
+
+
+            camera.lookAt(digitalisTabla.position);
+
+
+            var holdGeometria = new THREE.SphereGeometry(1, 30, 30);
+            var holdAnyaga = new THREE.MeshBasicMaterial({color: 0xF4F6F0, wireframe: false});
+            holdAnyaga.map = holdTextura;
+            hold = new THREE.Mesh(holdGeometria, holdAnyaga);
+            hold.position.set(-33, 25, -7.5);
+            scene.add(hold);
+
+            var napGeometria = new THREE.SphereGeometry(3, 30, 30);
+
+            var napAnyaga = new THREE.MeshBasicMaterial({color: 0xf9d71c, wireframe: false});
+            napAnyaga.map = napTextura;
+            nap = new THREE.Mesh(napGeometria, napAnyaga);
+            nap.position.set(-15, 25, -7.5);
+            scene.add(nap);
+
+
+            //blender mozdony+jegyautomata
+            scene.add(MozdonyMesh);
+            scene.add(AutomataMesh);
+
+
+
+
+
+
+
+            //------------------------fenyek--------------------//
+
+
+            hLight = new THREE.HemisphereLight( 0x1F51FF, 0x1F51FF, 0.8 );
+            hLight.position.set(-9, 2.9, -6.6,);
+            hLight.target = AutomataMesh;
+            scene.add( hLight );
+
+            sLight = new THREE.SpotLight(0xFFDE3B, 1);
+            sLight.position.set(-15, 25, -7.5);
+            sLight.angle = Math.PI / 3;
+            sLight.target = digitalisTabla;
+            //  sLight.penumbra = 2;
+            sLight.distance = 0;
+            sLight.castShadow = true;
+
+            scene.add(sLight);
+
+            ambientLight = new THREE.AmbientLight(0xfdfbd3, 1);
+            ambientLight.intensity = 0;
+            scene.add(ambientLight);
+
+
+            pLight = new THREE.PointLight(0xfdfbd3, 1);
+            pLight.intensity = 0;
+            pLight.position.set(0, 30, 0);
+            scene.add(pLight);
+
+
+
+
+
+            // Az ablak későbbi átméretezése esetén visszahívható függvény megadása
+            window.addEventListener('resize', handleWindowResize, false);
+
+            // Kamera vezérlés
+            controls = new TrackballControls(camera, renderer.domElement);
+            controls.rotateSpeed = 5.0;
+            controls.panSpeed = 1.0;
+
+            addControlGui();
+
+
+           animate();
+        }
+
+        function handleWindowResize() {
+            // Az ablak átméretezése esetén a kamera vetítési paraméterek újraszámolása
+            HEIGHT = window.innerHeight;
+            WIDTH = window.innerWidth;
+            console.log('WIDTH=' + WIDTH + '; HEIGHT=' + HEIGHT);
+            renderer.setSize(WIDTH, HEIGHT);
+            aspectRatio = WIDTH / HEIGHT;
+            camera.aspect = aspectRatio;
+            camera.updateProjectionMatrix();
+
+            render();
+        }
+
+        function animate() {
+            // Újabb képkocka rajzolásának kérése.
+            // Maximálisan 60 FPS-t biztosít a rendszer.
+
+            // Kameramozgás vezérlése
+            controls.update();
+            antennaFej.rotation.y += guiParams.AntennaSebesseg;
+            if (mozgoAjto.position.x < -2) {
+                mozgoAjto.position.x += 0.01;
+            }
+
+            if (hold.radius !== 31) {
+                hold.updateMatrix();
+                hold.geometry.applyMatrix4(hold.matrix);
+
+                hold.geometry.verticesNeedUpdate = true;
+
+                hold.position.set(0, 0, 0);
+                hold.rotation.y = 0.01;
+                hold.scale.set(1, 1, 1);
+                hold.updateMatrix();
+            }
+
+
+            sLight.rotation.y += 0.001;
+            nap.rotation.y += 0.001;
+
+
+
+
+            requestAnimationFrame( animate );
+            render();
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+</script>
+</body>
+</html>
